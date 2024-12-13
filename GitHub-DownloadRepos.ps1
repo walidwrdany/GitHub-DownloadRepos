@@ -1,7 +1,4 @@
 
-
-
-
 # Function to run a batch file
 function Run-BatchFile {
     param (
@@ -43,7 +40,7 @@ if (-not (Test-Path -Path $downloadDir)) {
 
 # Fetch all repositories with ownership and visibility details
 Write-Host "Fetching repositories..."
-$repositories = gh repo list --json nameWithOwner,isFork,visibility --limit 1000 | ConvertFrom-Json
+$repositories = gh repo list --source --json nameWithOwner,isFork,visibility --limit 1000 | ConvertFrom-Json
 
 # Process each repository
 foreach ($repo in $repositories) {
@@ -57,31 +54,25 @@ foreach ($repo in $repositories) {
 
     # Extract repository name from 'NameWithOwner'
     $repoName = ($nameWithOwner -split "/")[1]
+	
+    # Skip specific repository
+    if ($repoName -eq "GitHub-DownloadRepos") {
+        Write-Host "Skipping repository: $repoName"
+        continue
+    }
 
     # Create folder structure
     $repoPath = Join-Path -Path $downloadDir -ChildPath $folder
     if (-not (Test-Path -Path $repoPath)) {
         New-Item -ItemType Directory -Path $repoPath | Out-Null
     }
+	
     $repoClonePath = Join-Path -Path $repoPath -ChildPath $repoName
 
     Write-Host "Cloning repository: $nameWithOwner to $repoClonePath"
 
     # Clone the repository
     gh repo clone $nameWithOwner $repoClonePath
-
-    # Create a PowerShell script to sync the repository with its default branch
-    $syncScriptPath = Join-Path -Path $repoClonePath -ChildPath "SyncRepo.ps1"
-    @"
-# Sync repository with default branch
-Set-Location -Path "$repoClonePath"
-git fetch origin
-git pull origin
-Write-Host "Repository $repoName is synced with the default branch."
-Pause
-"@ | Set-Content -Path $syncScriptPath
-
-    Write-Host "Created sync script: $syncScriptPath"
 }
 
 Write-Host ""
